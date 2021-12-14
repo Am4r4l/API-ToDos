@@ -27,4 +27,4 @@ const ToDo = database.define('to-do', {
         }
 });
 }
-module.exports = usuario;
+module.exports = toDo;
