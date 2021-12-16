@@ -1,26 +1,36 @@
 const uuid = require('uuid');
+const bcrypt = require('bcrypt');
 const Sequelize = require('sequelize');
 const database = require('../../sequelize')
 
-const usuario = (sequelize, DataTypes) => {
+
 const Usuario = database.define('usuario', {
-        id: {
-            type: Sequelize.UUID,
-            defaltValue: DataTypes.UUIDV4,
-            autoIncrement: true,
-            allowNull: false,
-            primaryKey: true,
-            unique: true
+
+        nome: {
+            type: Sequelize.STRING,
         },
         email: {
             type: Sequelize.STRING,
-            allowNull: false,
-            unique: true
         },
         senha: { 
             type: Sequelize.STRING,
-            allowNull: false
         }
-});
+}, 
+{
+    timestamps: false
 }
-module.exports = usuario;
+);
+
+Usuario.beforeCreate((Usuario) => {
+
+    return bcrypt.hash(Usuario.senha, 10)
+        .then(hash => {
+            Usuario.senha = hash;
+        })
+        .catch(err => { 
+            throw new Error(); 
+        });
+});
+
+
+module.exports = Usuario;
