@@ -1,30 +1,24 @@
-const uuid = require('uuid');
-const Sequelize = require('sequelize');
-const database = require('../../sequelize')
+import Sequelize, { Model } from 'sequelize';
 
-const toDo = (sequelize, DataTypes) => {
-const ToDo = database.define('to-do', {
-        id: {
-            type: Sequelize.UUID,
-            defaltValue: DataTypes.UUIDV4,
-            autoIncrement: true,
-            allowNull: false,
-            primaryKey: true,
-            unique: true
-        },
-        titulo: {
-            type: Sequelize.STRING,
-            allowNull: false,
-            unique: true
-        },
-        descricao: { 
-            type: Sequelize.STRING,
-            allowNull: false
-        },
-        completo: {
-            type: Sequelize.BOOLEAN,
-            allowNull: false
-        }
-});
+class ToDo extends Model {
+  static init(sequelize) {
+    super.init(
+      {
+        titulo: Sequelize.STRING,
+        descricao: Sequelize.STRING,
+        completo: Sequelize.BOOLEAN,
+      },
+      {
+        sequelize,
+      }
+    );
+
+    return this;
+  }
+
+  static associate(models) {
+    this.belongsTo(models.User, { foreignKey: 'user_id', as: 'user' });
+  }
 }
-module.exports = toDo;
+
+export default ToDo;

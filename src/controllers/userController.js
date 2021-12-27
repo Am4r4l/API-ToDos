@@ -1,134 +1,80 @@
-const express = require("express");
-const router = express.Router();
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+import * as Yup from 'yup';
+import User from '../models/User';
 
-//model
-const Usuario = require("../models/usuario");
-
-// Rotas públicas
-
-    // Cadastro de Usuario
-
-    router.post("/cadastro", async (req, res) => {
-    try {
-        const { nome, email, senha, confirmaSenha } = req.body;
-
-        // validações
-
-        if (!nome) {
-        return res.status(422).json({ msg: "O nome é obrigatório" });
-        }
-        if (!email) {
-        return res.status(422).json({ msg: "O email é obrigatório" });
-        }
-        if (!senha) {
-        return res.status(422).json({ msg: "A senha é obrigatória" });
-        }
-        if (senha !== confirmaSenha) {
-        return res
-            .status(422)
-            .json({ msg: "As senhas informadas não coincidem" });
-        }
-
-        // checar se o usuário já existe
-
-        const usuarioExiste = await Usuario.findOne({
-        where: { email },
-        });
-
-        if (usuarioExiste) {
-        return res
-            .status(422)
-            .json({ msg: "Email já cadastrado, por favor informe outro email" });
-        }
-
-        // criar usuário
-
-        const usuario = new Usuario({
-        nome,
-        email,
-        senha,
-        });
-
-        await usuario.save();
-
-        return res.status(201).json({ msg: "Usuário cadastrado com sucesso" });
-        console.log(`Usuario ${usuario} cadastrado`);
-    } catch (error) {
-            console.log(error);
-
-            return res.status(500).json({
-            msg: "Ocorreu um erro no servidor, tente novamente mais tarde!",
-            });
-    }
+class UserController {
+  async store(req, res) {
+    const schema = Yup.object().shape({
+      nome: Yup.string().required(),
+      email: Yup.string().email().required(),
+      senha: Yup.string().required().min(6),
     });
 
-    // Login 
+    if (!(await schema.isValid(req.body))) {
+      return res.status(400).json({ error: 'Falha na validação' });
+    }
 
-    router.post("/login", async (req, res) => {
-        try {
-            const { email, senha } = req.body;
+    const userExists = await User.findOne({
+      where: { email: req.body.email },
+    });
 
-            // Validações
+    if (userExists) {
+      return res.status(400).json({ error: 'Usuario já existe.' });
+    }
 
-            if (!email) {
-            return res.status(422).json({ msg: "O email é obrigatório" });
-            }
-            if (!senha) {
-            return res.status(422).json({ msg: "A senha é obrigatória" });
-            } 
+    const { id, nome, email } = await User.create(req.body);
 
-            // checar se o usuário existe 
+    return res.json({
+      id,
+      nome,
+      email,
+    });
+  }
 
-            const usuarioExiste = await Usuario.findOne({
-                where: { email },
-            });
+  async update(req, res) {
+    const schema = Yup.object().shape({
+      nome: Yup.string(),
+      email: Yup.string().email(),
+      senhaAntiga: Yup.string().min(6),
+      senha: Yup.string()
+        .min(6)
+        .when('senhaAntiga', (senhaAntiga, field) =>
+          senhaAntiga ? field.required() : field
+        ),
+      confirmaSenha: Yup.string().when('senha', (senha, field) =>
+        senha ? field.required().oneOf([Yup.ref('senha')]) : field
+      ),
+    });
 
-            if(!usuarioExiste) {
-                return res.status(404).json({ msg: "Usuário não encontrado!"})
-            }
+    if (!(await schema.isValid(req.body))) {
+      return res.status(400).json({ error: 'Falha na validação' });
+    }
 
-            // checar se a senha coincide com o banco de dados 
+    const { email, senhaAntiga } = req.body;
 
-            const checaSenha = await bcrypt.compare(senha, usuarioExiste.senha)
+    const user = await User.findByPk(req.userId);
 
-            if(!checaSenha) {
-                return res.status(422).json({ msg: "Senha inválida"})
-            }
+    if (email !== user.email) {
+      const userExists = await User.findOne({
+        where: { email },
+      });
 
-            
-                const secret = process.env.SECRET
+      if (userExists) {
+        return res.status(400).json({ error: 'Usuario já existe.' });
+      }
+    }
 
-                const token = jwt.sign(
-                    {
-                    id: usuarioExiste._id
-                    }, secret)
+    if (senhaAntiga && !(await user.checaSenha(senhaAntiga))) {
+      return res.status(401).json({ error: 'Senha incorreta.' });
+    }
 
-            return res.status(200).json({ msg: "Autenticação realizada com sucesso!", token})
+    const { id, nome } = await user.update(req.body);
 
-            
-            
+    return res.json({
+      id,
+      nome,
+      email,
+    });
+  }
+}
 
-        } catch (error) {
-            console.log(error);
-
-            return res.status(500).json({
-            msg: "Ocorreu um erro no servidor, tente novamente mais tarde!",
-            });
-        }
-    })
-
-// Rotas privadas  
-
-router.get("/", async (req, res) => {
-
-});
-
-
-
-router.get("/:id", async (req, res) => {
-
-});
-
-module.exports = router;
+export default new UserController();
