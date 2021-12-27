@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const routers = require('./src/controllers');
 
 const app = express();
